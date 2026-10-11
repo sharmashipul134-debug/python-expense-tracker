@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PennyWise — Expense Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('index') }}"><span class="brand-mark">P</span><span>PennyWise<small>PERSONAL FINANCE</small></span></a>
+      <div class="side-label">WORKSPACE</div>
+      <a class="nav-link active" href="{{ url_for('index') }}"><span>▦</span> Overview</a>
+      <a class="nav-link" href="#transactions"><span>↔</span> Transactions</a>
+      <a class="nav-link" href="#add-transaction"><span>＋</span> Add transaction</a>
+      <div class="sidebar-bottom">
+        <div class="mini-card"><div class="mini-icon">✦</div><strong>Small steps add up.</strong><p>Track today. Feel more in control tomorrow.</p></div>
+        <div class="profile"><div class="avatar">Y</div><div><strong>Your Wallet</strong><small>Personal account</small></div><span class="dots">•••</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div><p class="eyebrow">MONDAY, EVERY DAY</p><h1>Overview <span class="wave">✦</span></h1><p class="subheading">Here’s what’s happening with your money.</p></div>
+        <a class="primary-btn" href="#add-transaction">＋ <span>Add transaction</span></a>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+      {% endwith %}
+
+      <section class="summary-grid">
+        <article class="summary-card balance-card">
+          <div class="card-top"><span>Available balance</span><span class="card-icon balance-icon">₹</span></div>
+          <div class="money">₹{{ "{:,.2f}".format(summary.balance) }}</div>
+          <div class="card-foot"><span class="status-dot"></span> Income minus expenses</div>
+          <div class="decor-circle"></div>
+        </article>
+        <article class="summary-card">
+          <div class="card-top"><span>Total income</span><span class="card-icon income-icon">↙</span></div>
+          <div class="money">₹{{ "{:,.2f}".format(summary.income) }}</div>
+          <div class="card-foot"><span class="trend positive">↗</span> Money received</div>
+        </article>
+        <article class="summary-card">
+          <div class="card-top"><span>Total expenses</span><span class="card-icon expense-icon">↗</span></div>
+          <div class="money">₹{{ "{:,.2f}".format(summary.expenses) }}</div>
+          <div class="card-foot"><span class="trend negative">↗</span> Money spent</div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel transactions-panel" id="transactions">
+          <div class="panel-heading"><div><h2>Recent transactions</h2><p>Your latest money activity</p></div>
+            <form method="get" class="filter-form"><select name="kind" aria-label="Filter transactions" onchange="this.form.submit()"><option value="all" {% if selected_kind == 'all' %}selected{% endif %}>All activity</option><option value="income" {% if selected_kind == 'income' %}selected{% endif %}>Income</option><option value="expense" {% if selected_kind == 'expense' %}selected{% endif %}>Expenses</option></select></form>
+          </div>
+          {% if transactions %}
+          <div class="table-wrap"><table><thead><tr><th>TRANSACTION</th><th>CATEGORY</th><th>DATE</th><th class="align-right">AMOUNT</th><th></th></tr></thead><tbody>
+          {% for t in transactions %}
+            <tr><td><div class="transaction-name"><span class="transaction-icon icon-{{ t['kind'] }}">{{ '↙' if t['kind'] == 'income' else '↗' }}</span><span><strong>{{ t['title'] }}</strong><small>{{ t['notes'] or ('Income received' if t['kind'] == 'income' else 'Expense paid') }}</small></span></div></td><td><span class="category-pill">{{ t['category'] }}</span></td><td class="date-cell">{{ t['transaction_date'] }}</td><td class="align-right amount {{ 'positive-amount' if t['kind'] == 'income' else 'negative-amount' }}">{{ '+' if t['kind'] == 'income' else '−' }}₹{{ "{:,.2f}".format(t['amount']) }}</td><td><form method="post" action="{{ url_for('delete_transaction', transaction_id=t['id']) }}" onsubmit="return confirm('Delete this transaction?')"><button class="delete-btn" title="Delete transaction" aria-label="Delete transaction">×</button></form></td></tr>
+          {% endfor %}
+          </tbody></table></div>
+          {% else %}
+          <div class="empty-state"><div class="empty-icon">↔</div><h3>No transactions yet</h3><p>Add your first income or expense to get started.</p><a href="#add-transaction" class="text-link">Add your first transaction →</a></div>
+          {% endif %}
+          <div class="table-footer">Showing up to 100 latest transactions <span>•</span> Stored on this device</div>
+        </article>
+
+        <aside class="panel add-panel" id="add-transaction">
+          <div class="panel-heading"><div><h2>Quick entry</h2><p>Record a money movement</p></div><span class="quick-icon">＋</span></div>
+          <form method="post" action="{{ url_for('add_transaction') }}" class="entry-form">
+            <label for="title">Transaction name</label><input id="title" name="title" placeholder="e.g. Grocery shopping" maxlength="100" required>
+            <label>Transaction type</label><div class="type-toggle"><label><input type="radio" name="kind" value="expense" checked><span>↗ Expense</span></label><label><input type="radio" name="kind" value="income"><span>↙ Income</span></label></div>
+            <label for="amount">Amount (₹)</label><div class="amount-input"><span>₹</span><input id="amount" name="amount" type="number" min="0.01" max="1000000000" step="0.01" placeholder="0.00" required></div>
+            <div class="form-row"><div><label for="category">Category</label><select id="category" name="category">{% for category in categories %}<option>{{ category }}</option>{% endfor %}</select></div><div><label for="transaction_date">Date</label><input id="transaction_date" name="transaction_date" type="date" value="{{ today }}" required></div></div>
+            <label for="notes">Note <span class="optional">(optional)</span></label><input id="notes" name="notes" maxlength="300" placeholder="Add a short note">
+            <button class="submit-btn" type="submit">Save transaction <span>→</span></button>
+          </form>
+          <div class="privacy-note"><span>♧</span> Your financial data stays in your local database.</div>
+        </aside>
+      </section>
+      <footer class="footer">Made with <span>♥</span> using Python & Flask <span class="footer-right">PennyWise · Personal expense tracker</span></footer>
+    </main>
+  </div>
+</body>
+</html>

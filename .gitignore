@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.py[cod]
+expenses.db
+app.log
+.env
+.DS_Store
